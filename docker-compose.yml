@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fintrack-db
+    environment:
+      POSTGRES_DB: fintrack
+      POSTGRES_USER: fintrack
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fintrack"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - fintrack-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fintrack-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://fintrack:${DB_PASSWORD:-changeme}@postgres:5432/fintrack
+      # Alembic needs the synchronous driver for migrations
+      DATABASE_URL_SYNC: postgresql://fintrack:${DB_PASSWORD:-changeme}@postgres:5432/fintrack
+      JWT_SECRET: ${JWT_SECRET:-super-secret-change-in-production}
+      JWT_ACCESS_EXPIRE_MINUTES: "30"
+      JWT_REFRESH_EXPIRE_DAYS: "30"
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fintrack-net
+    # Uncomment for live development — auto-reload on file changes
+    # volumes:
+    #   - ./backend/app:/app/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fintrack-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - fintrack-net
+
+volumes:
+  pgdata:
+
+networks:
+  fintrack-net:
+    driver: bridge
