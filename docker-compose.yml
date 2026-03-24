@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: fintrack
       POSTGRES_USER: fintrack
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:107692_CBarson}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -26,10 +26,10 @@ services:
       dockerfile: Dockerfile
     container_name: fintrack-api
     environment:
-      DATABASE_URL: postgresql+asyncpg://fintrack:${DB_PASSWORD:-changeme}@postgres:5432/fintrack
+      DATABASE_URL: postgresql+asyncpg://fintrack:${DB_PASSWORD:107692_CBarson}@postgres:5432/fintrack
       # Alembic needs the synchronous driver for migrations
-      DATABASE_URL_SYNC: postgresql://fintrack:${DB_PASSWORD:-changeme}@postgres:5432/fintrack
-      JWT_SECRET: ${JWT_SECRET:-super-secret-change-in-production}
+      DATABASE_URL_SYNC: postgresql://fintrack:${DB_PASSWORD:107692_CBarson}@postgres:5432/fintrack
+      JWT_SECRET: ${JWT_SECRET:a3f8b2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0}
       JWT_ACCESS_EXPIRE_MINUTES: "30"
       JWT_REFRESH_EXPIRE_DAYS: "30"
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
