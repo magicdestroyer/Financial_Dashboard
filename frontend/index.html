@@ -973,9 +973,10 @@ function getUserProfileContext() {
 function hp(p) { let h = 0; for (let i = 0; i < p.length; i++) h = (Math.imul(31, h) + p.charCodeAt(i)) | 0; return h.toString(36); }
 
 // ── BACKEND ──────────────────────────────────────────────────────────────────
+// AFTER — uses nginx proxy at any port; falls back to direct backend for file:// or bare localhost dev
 const API_BASE = window.location.protocol === 'file:'
-  ? 'http://localhost:3001/api'
-  : (window.location.port === '3001' || window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
+  ? 'http://localhost:8000/api'
+  : '/api';
 let API_TOKEN = localStorage.getItem('ft_api_token') || null;
 let USE_BACKEND = false;
 
