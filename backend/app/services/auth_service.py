@@ -19,13 +19,19 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    """Hash a plaintext password with bcrypt."""
-    return pwd_context.hash(password)
+    """Hash a plaintext password with bcrypt.
+    
+    bcrypt has a 72-byte limit, so truncate longer passwords.
+    """
+    return pwd_context.hash(password[:72])
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Check a plaintext password against its bcrypt hash."""
-    return pwd_context.verify(plain, hashed)
+    """Check a plaintext password against its bcrypt hash.
+    
+    Apply the same 72-byte truncation as hash_password for consistency.
+    """
+    return pwd_context.verify(plain[:72], hashed)
 
 
 def create_access_token(user_id: UUID) -> str:
