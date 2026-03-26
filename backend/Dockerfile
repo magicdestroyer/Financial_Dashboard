@@ -18,7 +18,21 @@ COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 
+# Create setup.py to make app importable as a package
+RUN cat > setup.py << 'EOF'
+from setuptools import setup, find_packages
+setup(
+    name="fintrack",
+    version="0.1.0",
+    packages=find_packages(),
+)
+EOF
+
+# Install app in editable mode for proper import resolution
+RUN pip install -e .
+
 EXPOSE 8000
 
 # Run Alembic migrations first, then start the server
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"]
+# PYTHONPATH set as fallback for module discovery
+CMD ["sh", "-c", "PYTHONPATH=/app alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"]
