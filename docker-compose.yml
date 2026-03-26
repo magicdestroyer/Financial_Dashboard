@@ -1,65 +1,99 @@
 version: "3.9"
 
+# ── USAGE ──────────────────────────────────────────────────────────────────────
+# 1. Copy .env.example to .env and fill in real values
+# 2. docker compose up -d --build
+# 3. App available at http://localhost:8080
+#    API docs at    http://localhost:8080/api/docs
+# ──────────────────────────────────────────────────────────────────────────────
+
 services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16.4@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412
+    image: postgres:16-alpine
     container_name: fintrack-db
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: fintrack
-      POSTGRES_USER: fintrack
+      POSTGRES_DB:       fintrack
+      POSTGRES_USER:     fintrack
       POSTGRES_PASSWORD: ${DB_PASSWORD:-107692_CBarson}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Expose only on loopback so the DB isn't reachable from outside the host
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fintrack"]
+      test: ["CMD-SHELL", "pg_isready -U fintrack -d fintrack"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+      start_period: 10s
     networks:
       - fintrack-net
 
+  # ── FastAPI backend ───────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: fintrack-api
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://fintrack:${DB_PASSWORD:-107692_CBarson}@postgres:5432/fintrack
+      # asyncpg driver for the app
+      DATABASE_URL:      postgresql+asyncpg://fintrack:${DB_PASSWORD:-107692_CBarson}@postgres:5432/fintrack
+      # psycopg2 (sync) driver for Alembic migrations
       DATABASE_URL_SYNC: postgresql://fintrack:${DB_PASSWORD:-107692_CBarson}@postgres:5432/fintrack
-      JWT_SECRET: ${JWT_SECRET:-a3f8b2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0}
+
+      JWT_SECRET:               ${JWT_SECRET:-change-me-in-production}
+      JWT_ALGORITHM:            HS256
       JWT_ACCESS_EXPIRE_MINUTES: "30"
-      JWT_REFRESH_EXPIRE_DAYS: "30"
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
-    ports:
-      - "8000:8000"
+      JWT_REFRESH_EXPIRE_DAYS:  "30"
+
+      # Allow requests from the Nginx frontend (port 8080) and direct dev access
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:3000}
+
+      APP_VERSION: "1.0.0"
+
+    # Only expose internally — Nginx proxies /api/* to this container
+    expose:
+      - "8000"
+    # Uncomment if you need direct API access for debugging:
+    # ports:
+    #   - "127.0.0.1:8000:8000"
+
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - fintrack-net
-    # Uncomment for live development — auto-reload on file changes
+
+    # Live-reload during development — comment out for production
     # volumes:
     #   - ./backend/app:/app/app
 
+    networks:
+      - fintrack-net
+
+  # ── Nginx + frontend ──────────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: fintrack-web
+    restart: unless-stopped
     ports:
-      - "8080:80"
+      # Host 8080 → container 8080 (non-root Nginx binds 8080 internally)
+      - "8080:8080"
     depends_on:
       - backend
-    restart: unless-stopped
     networks:
       - fintrack-net
 
+# ── Named volumes ─────────────────────────────────────────────────────────────
 volumes:
   pgdata:
+    driver: local
 
+# ── Networks ──────────────────────────────────────────────────────────────────
 networks:
   fintrack-net:
     driver: bridge

@@ -1,38 +1,49 @@
 FROM python:3.11-slim
 
-# Prevent Python from writing .pyc files and enable unbuffered output
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Prevent .pyc files and force stdout/stderr flush
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    # Keep pip quiet and don't write a cache inside the image
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# Install system dependencies needed for psycopg2
+# System deps needed to compile psycopg2
+# Kept in a single layer and cleaned up immediately to minimise image size
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc libpq-dev && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        # curl is used by the HEALTHCHECK below
+        curl \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install Python deps before copying source so this layer is cached as long
+# as requirements.txt doesn't change
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
-COPY app/ ./app/
-COPY alembic/ ./alembic/
+# Copy application source
+COPY app/      ./app/
+COPY alembic/  ./alembic/
 COPY alembic.ini .
 
-# Create setup.py to make app importable as a package
-RUN cat > setup.py << 'EOF'
-from setuptools import setup, find_packages
-setup(
-    name="fintrack",
-    version="0.1.0",
-    packages=find_packages(),
-)
-EOF
+# Copy the entrypoint script and make it executable
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
-# Install app in editable mode for proper import resolution
-RUN pip install -e .
+# Run as a non-root user — principle of least privilege
+RUN addgroup --system appgroup && \
+    adduser  --system --ingroup appgroup --no-create-home appuser
+USER appuser
 
 EXPOSE 8000
 
-# Run Alembic migrations first, then start the server
-# PYTHONPATH set as fallback for module discovery
-CMD ["sh", "-c", "PYTHONPATH=/app alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"]
+# Liveness check — hits the /api/health endpoint we already have
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+
+# Entrypoint runs migrations first, then hands off to CMD
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
