@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 class SignupRequest(BaseModel):
     username: str = Field(min_length=3, max_length=50)
-    password: str = Field(min_length=4, max_length=128)
+    password: str = Field(min_length=4, max_length=72)
     dob: Optional[date] = None
     risk: Optional[str] = "moderate"
 
@@ -37,7 +37,7 @@ class ProfileUpdateRequest(BaseModel):
 
 class PasswordChangeRequest(BaseModel):
     old_password: str
-    new_password: str = Field(min_length=4, max_length=128)
+    new_password: str = Field(min_length=4, max_length=72)
 
 
 class UserResponse(BaseModel):
