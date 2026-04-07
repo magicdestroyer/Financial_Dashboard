@@ -7,7 +7,7 @@ Hierarchy:
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import ForeignKey, String, Integer, Date, Numeric, CheckConstraint, UniqueConstraint
@@ -30,7 +30,7 @@ class BudgetYear(Base):
     roth_contribution: Mapped[Decimal] = mapped_column(
         Numeric(10, 2), default=Decimal("0.00")
     )
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="budget_years")
@@ -64,7 +64,7 @@ class BudgetItem(Base):
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     budget_year: Mapped["BudgetYear"] = relationship(back_populates="items")

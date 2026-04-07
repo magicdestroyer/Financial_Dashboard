@@ -146,13 +146,23 @@ async def create_hysa_log(
     else:
         acct.current_balance += req.amount
 
-    # Record snapshot
-    snapshot = HysaSnapshot(
-        account_id=acct.id,
-        snapshot_date=req.date,
-        balance=acct.current_balance,
+    # Record snapshot — UPSERT: update if exists on same date, else insert
+    snap_result = await db.execute(
+        select(HysaSnapshot).where(
+            HysaSnapshot.account_id == acct.id,
+            HysaSnapshot.snapshot_date == req.date
+        )
     )
-    db.add(snapshot)
+    snapshot = snap_result.scalar_one_or_none()
+    if snapshot:
+        snapshot.balance = acct.current_balance
+    else:
+        snapshot = HysaSnapshot(
+            account_id=acct.id,
+            snapshot_date=req.date,
+            balance=acct.current_balance,
+        )
+        db.add(snapshot)
 
     await db.flush()
     return HysaLogSchema.model_validate(log)
@@ -165,13 +175,17 @@ async def delete_hysa_log(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Delete a log entry and recalculate account balance from remaining logs.
+    """
     # Verify ownership
     result = await db.execute(
         select(HysaAccount).where(
             HysaAccount.id == account_id, HysaAccount.user_id == user.id
         )
     )
-    if not result.scalar_one_or_none():
+    acct = result.scalar_one_or_none()
+    if not acct:
         raise HTTPException(status_code=404, detail="Account not found")
 
     result = await db.execute(
@@ -181,5 +195,26 @@ async def delete_hysa_log(
     if not log:
         raise HTTPException(status_code=404, detail="Log entry not found")
 
+    # Delete the log
     await db.delete(log)
-    return {"message": "Log entry deleted"}
+
+    # Recalculate balance from remaining logs (ordered by date)
+    logs_result = await db.execute(
+        select(HysaLog)
+        .where(HysaLog.account_id == account_id)
+        .order_by(HysaLog.log_date)
+    )
+    remaining_logs = logs_result.scalars().all()
+    
+    # Start from 0 and replay all logs
+    new_balance = 0
+    for remaining_log in remaining_logs:
+        if remaining_log.log_type == "withdrawal":
+            new_balance = max(0, new_balance - remaining_log.amount)
+        else:
+            new_balance += remaining_log.amount
+    
+    # Update account with recalculated balance
+    acct.current_balance = new_balance
+    
+    return {"message": "Log entry deleted", "new_balance": new_balance}

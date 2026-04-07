@@ -8,7 +8,7 @@ Hierarchy:
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import ForeignKey, String, Integer, Date, Numeric, UniqueConstraint
@@ -32,9 +32,9 @@ class StockHolding(Base):
     account_type: Mapped[str] = mapped_column(String(50), default="Roth IRA")
     exchange: Mapped[str | None] = mapped_column(String(50))
     quote_type: Mapped[str | None] = mapped_column(String(50))
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     # Relationships
@@ -62,9 +62,9 @@ class StockLot(Base):
     shares: Mapped[Decimal] = mapped_column(Numeric(14, 6), nullable=False)
     price_per_share: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
     amount_spent: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     holding: Mapped["StockHolding"] = relationship(back_populates="lots")

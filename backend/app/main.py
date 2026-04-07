@@ -18,7 +18,7 @@ from app.database import engine
 
 # Import routers
 from app.routers import auth, settings as settings_router
-from app.routers import budgets, hysa, stocks, snapshots, proxy, export
+from app.routers import budgets, hysa, stocks, snapshots, proxy, export, data
 
 
 @asynccontextmanager
@@ -61,6 +61,7 @@ app.include_router(hysa.router,              prefix="/api/hysa",     tags=["HYSA
 app.include_router(stocks.router,            prefix="/api/stocks",   tags=["Stocks"])
 app.include_router(snapshots.router,         prefix="/api/snapshots",tags=["Snapshots"])
 app.include_router(proxy.router,             prefix="/api/proxy",    tags=["Proxy"])
+app.include_router(data.router,              prefix="/api",          tags=["Data"])
 app.include_router(export.router,            prefix="/api",          tags=["Export"])
 
 

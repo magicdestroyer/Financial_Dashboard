@@ -15,14 +15,8 @@ COPY sw.js         /usr/share/nginx/html/
 # Add your icon files here at build time if you have them
 RUN mkdir -p /usr/share/nginx/html/icons
 
-# Nginx can bind to a high port and run as a non-root user.
-# We reassign the default port from 80 → 8080 inside the container
-# and update the pid file location so the non-root user can write it.
-RUN sed -i \
-        -e 's/listen\s*80;/listen 8080;/' \
-        -e 's|/var/run/nginx.pid|/tmp/nginx.pid|' \
-        /etc/nginx/conf.d/default.conf && \
-    # Also patch the main nginx.conf pid path
+# Update pid file location so the non-root nginx user can write it
+RUN sed -i 's|/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf && \
     sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|' /etc/nginx/nginx.conf && \
     # Give the nginx user ownership of cache/log dirs it needs at runtime
     chown -R nginx:nginx \

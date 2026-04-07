@@ -3,7 +3,7 @@ Per-user dashboard settings: theme, accent color, live mode toggles.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import ForeignKey, String, Integer, Boolean
 from sqlalchemy.dialects.postgresql import UUID
@@ -26,7 +26,7 @@ class UserSettings(Base):
     live_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     extended_hours: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     user: Mapped["User"] = relationship(back_populates="settings")

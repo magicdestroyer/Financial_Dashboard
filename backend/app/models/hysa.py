@@ -7,7 +7,7 @@ Hierarchy:
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import ForeignKey, String, Integer, Date, Numeric, CheckConstraint, UniqueConstraint
@@ -44,9 +44,9 @@ class HysaAccount(Base):
         Numeric(12, 2), default=Decimal("0.00")
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     # Relationships
@@ -74,7 +74,7 @@ class HysaLog(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     log_type: Mapped[str] = mapped_column(String(20), nullable=False)
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     account: Mapped["HysaAccount"] = relationship(back_populates="logs")
 

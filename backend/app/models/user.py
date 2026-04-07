@@ -6,7 +6,7 @@ Passwords are never stored in plaintext; only bcrypt hashes.
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import String, Date, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -30,9 +30,11 @@ class User(Base):
     risk_tolerance: Mapped[str] = mapped_column(
         String(20), default="moderate"
     )
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     # Relationships (lazy="selectin" means they load in the same query)

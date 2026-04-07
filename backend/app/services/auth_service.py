@@ -6,7 +6,7 @@ token creation) shouldn't live inside HTTP handlers.  This makes
 it testable and reusable.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from jose import jwt, JWTError
@@ -39,7 +39,7 @@ def create_access_token(user_id: UUID) -> str:
     Create a short-lived JWT for API authentication.
     Contains: sub (user ID), exp (expiration), type.
     """
-    expire = datetime.utcnow() + timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
     payload = {
         "sub": str(user_id),
         "exp": expire,
@@ -53,7 +53,7 @@ def create_refresh_token(user_id: UUID) -> str:
     Create a long-lived JWT for obtaining new access tokens.
     The user doesn't need to re-enter their password for 30 days.
     """
-    expire = datetime.utcnow() + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
     payload = {
         "sub": str(user_id),
         "exp": expire,
@@ -70,4 +70,19 @@ def decode_token(token: str) -> dict | None:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         return payload
     except JWTError:
+        return None
+
+
+async def verify_token(token: str) -> int | None:
+    """
+    Verify a JWT and extract the user_id.
+    Returns user_id (int) if valid, None if invalid.
+    """
+    payload = decode_token(token)
+    if not payload:
+        return None
+    try:
+        user_id = int(payload.get("sub", ""))
+        return user_id
+    except (ValueError, TypeError):
         return None
