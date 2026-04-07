@@ -1006,7 +1006,7 @@ function setBackendIndicator(online) {
 }
 
 // ── SAVE FUNCTIONS ────────────────────────────────────────────────────────────
-async function sB(b) { localStorage.setItem(uk('budgets'), JSON.stringify(b)); if (USE_BACKEND) await apiRequest('PUT', '/data/budgets', b); }
+async function sB(b) { localStorage.setItem(uk('budgets'), JSON.stringify(b)); if (USE_BACKEND) await apiRequest('PUT', '/data/budgets/{year}', b); }
 async function sH(h) { localStorage.setItem(uk('hysa'), JSON.stringify(h));   if (USE_BACKEND) await apiRequest('PUT', '/data/hysa', h); }
 async function sSt(s){ localStorage.setItem(uk('stocks'), JSON.stringify(s)); if (USE_BACKEND) await apiRequest('PUT', '/data/stocks', s); }
 async function sSet(s){ localStorage.setItem(uk('settings'), JSON.stringify(s)); if (USE_BACKEND) await apiRequest('PUT', '/data/settings', s); }
@@ -1027,10 +1027,10 @@ async function doLogin() {
   if (USE_BACKEND) {
     const { data, error } = await apiRequest('POST', '/api/auth/login', { username: u, password: p });
     if (error) { setAE(error); return; }
-    API_TOKEN = data.token; localStorage.setItem('ft_api_token', API_TOKEN);
+    API_TOKEN = data.access_token; localStorage.setItem('ft_api_token', API_TOKEN);
     const { data: ud } = await apiRequest('GET', '/data');
-    if (ud?.data) {
-      const fu = { id: data.user.id, username: data.user.username, password: hp(p), dob: data.user.dob || '', risk: data.user.risk || 'moderate' };
+    if (ud.data) {
+      const fu = { id: data.user.id, username: data.user.username, password: hp(p), dob: data.user.date_of_birth || '', risk: data.user.risk_tolerance || 'moderate' };
       const users = gU(); if (!users.find(x => x.id === fu.id)) { users.push(fu); sU(users); }
       const d = ud.data;
       localStorage.setItem('ft_' + fu.id + '_budgets',  JSON.stringify(d.budgets));
@@ -1038,7 +1038,7 @@ async function doLogin() {
       localStorage.setItem('ft_' + fu.id + '_stocks',   JSON.stringify(d.stocks));
       localStorage.setItem('ft_' + fu.id + '_settings', JSON.stringify(d.settings));
     }
-    loginAs({ id: data.user.id, username: data.user.username, dob: data.user.dob || '', risk: data.user.risk || 'moderate' });
+    loginAs({ id: data.user.id, username: data.user.username, dob: data.user.date_of_birth || '', risk: data.user.risk_tolerance || 'moderate' });
   } else {
     const f = gU().find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === hp(p));
     if (!f) { setAE('Invalid username or password.'); return; }
@@ -1059,7 +1059,7 @@ async function doSignup() {
   if (USE_BACKEND) {
     const { data, error } = await apiRequest('POST', '/api/auth/signup', { username: u, password: p, dob, risk });
     if (error) { setAE(error); return; }
-    API_TOKEN = data.token; localStorage.setItem('ft_api_token', API_TOKEN);
+    API_TOKEN = data.access_token; localStorage.setItem('ft_api_token', API_TOKEN);
     const nu = { id: data.user.id, username: data.user.username, password: hp(p), dob, risk };
     const users = gU(); users.push(nu); sU(users);
     loginAs(nu);
@@ -1239,24 +1239,24 @@ function thd() { return hysa.reduce((s, h) => s + (h.annualDeposit || 0), 0); }
 function ensureYear(y) {
   if (!budgets[y]) budgets[y] = { income: [], expenses: [], roth: 0, savingsBuckets: [] };
   if (!budgets[y].savingsBuckets) budgets[y].savingsBuckets = [];
-  const migrate = arr => { if (!Array.isArray(arr)) return; arr.forEach(it => { if (!it.type) it.type = 'monthly'; if (it.date === undefined) it.date = ''; }); };
+  const migrate = arr => { if (!Array.isArray(arr)) return; arr.forEach(it => { if (!it.frequency) it.frequency = 'monthly'; if (it.date === undefined) it.date = ''; }); };
   migrate(budgets[y].income); migrate(budgets[y].expenses);
 }
 
 function getEffectiveAmount(it) {
   const amt = parseFloat(it.amount) || 0;
   const multipliers = { weekly:52, biweekly:26, monthly:12, quarterly:4, semiann:2, annually:1 };
-  if (multipliers[it.type] !== undefined) return amt * multipliers[it.type];
-  if (it.type === 'onetime' || it.type === 'capex') {
+  if (multipliers[it.frequency] !== undefined) return amt * multipliers[it.frequency];
+  if (it.frequency === 'onetime' || it.frequency === 'capex') {
     if (!it.date) return amt;
     return new Date(it.date) <= new Date() ? amt : 0;
   }
   return amt * 12;
 }
 
-function getFreqLabel(type) {
+function getFreqLabel(frequency) {
   const labels = { weekly:'Weekly', biweekly:'Bi-weekly', monthly:'Monthly', quarterly:'Quarterly', semiann:'Semi-annually', annually:'Annually', onetime:'One-time', capex:'One-time' };
-  return labels[type] || 'Monthly';
+  return labels[frequency] || 'Monthly';
 }
 
 function calcNextCharge(type, lastDateStr) {
@@ -1264,12 +1264,12 @@ function calcNextCharge(type, lastDateStr) {
   const last = new Date(lastDateStr); if (isNaN(last)) return null;
   const now = new Date(); let next = new Date(last); let safety = 0;
   while (next <= now && safety++ < 1000) {
-    if (type === 'weekly')     next.setDate(next.getDate() + 7);
-    else if (type === 'biweekly') next.setDate(next.getDate() + 14);
-    else if (type === 'monthly')  next.setMonth(next.getMonth() + 1);
-    else if (type === 'quarterly')next.setMonth(next.getMonth() + 3);
-    else if (type === 'semiann')  next.setMonth(next.getMonth() + 6);
-    else if (type === 'annually') next.setFullYear(next.getFullYear() + 1);
+    if (frequency === 'weekly')     next.setDate(next.getDate() + 7);
+    else if (frequency === 'biweekly') next.setDate(next.getDate() + 14);
+    else if (frequency === 'monthly')  next.setMonth(next.getMonth() + 1);
+    else if (frequency === 'quarterly')next.setMonth(next.getMonth() + 3);
+    else if (frequency === 'semiann')  next.setMonth(next.getMonth() + 6);
+    else if (frequency === 'annually') next.setFullYear(next.getFullYear() + 1);
     else return null;
   }
   const diff = Math.round((next - now) / (1000 * 60 * 60 * 24));
@@ -1292,12 +1292,12 @@ function getYTDIncome() {
   const qtrsElapsed = Math.floor(monthsElapsed / 3);
   return b.income.reduce((s, it) => {
     const amt = parseFloat(it.amount) || 0;
-    if (it.type === 'weekly')    return s + (amt * weekNum);
-    if (it.type === 'biweekly')  return s + (amt * biweekNum);
-    if (it.type === 'monthly')   return s + (amt * monthsElapsed);
-    if (it.type === 'quarterly') return s + (amt * qtrsElapsed);
-    if (it.type === 'semiann')   return s + (monthsElapsed >= 6 ? amt : 0);
-    if (it.type === 'annually')  return s + (monthsElapsed >= 12 ? amt : 0);
+    if (it.frequency === 'weekly')    return s + (amt * weekNum);
+    if (it.frequency === 'biweekly')  return s + (amt * biweekNum);
+    if (it.frequency === 'monthly')   return s + (amt * monthsElapsed);
+    if (it.frequency === 'quarterly') return s + (amt * qtrsElapsed);
+    if (it.frequency === 'semiann')   return s + (monthsElapsed >= 6 ? amt : 0);
+    if (it.frequency === 'annually')  return s + (monthsElapsed >= 12 ? amt : 0);
     const d = it.date ? new Date(it.date) : null;
     return s + ((!d || d <= now) ? amt : 0);
   }, 0);
@@ -1430,10 +1430,10 @@ function rlines(t) {
     d.style.cssText = 'margin-bottom:10px;background:var(--surface2);border-radius:var(--radius-sm);padding:8px 10px;border:1px solid var(--border);';
     const effAmt = getEffectiveAmount(it);
     const freqs = t === 'income' ? [{v:'weekly',l:'Weekly'},{v:'biweekly',l:'Bi-weekly'},{v:'monthly',l:'Monthly'},{v:'quarterly',l:'Quarterly'},{v:'semiann',l:'Semi-annually'},{v:'annually',l:'Annually'},{v:'onetime',l:'One-time'}] : [{v:'weekly',l:'Weekly'},{v:'biweekly',l:'Bi-weekly'},{v:'monthly',l:'Monthly'},{v:'quarterly',l:'Quarterly'},{v:'semiann',l:'Semi-annually'},{v:'annually',l:'Annually'},{v:'capex',l:'One-time / Capex'}];
-    const typeOpts = freqs.map(f => '<option value="' + f.v + '"' + (it.type === f.v ? ' selected' : '') + '>' + f.l + '</option>').join('');
-    const isRecurring = ['weekly','biweekly','monthly','quarterly','semiann','annually'].includes(it.type);
-    const isOnetime   = it.type === 'onetime' || it.type === 'capex';
-    const nextCharge  = isRecurring && it.date ? calcNextCharge(it.type, it.date) : null;
+    const typeOpts = freqs.map(f => '<option value="' + f.v + '"' + (it.frequency === f.v ? ' selected' : '') + '>' + f.l + '</option>').join('');
+    const isRecurring = ['weekly','biweekly','monthly','quarterly','semiann','annually'].includes(it.frequency);
+    const isOnetime   = it.frequency === 'onetime' || it.frequency === 'capex';
+    const nextCharge  = isRecurring && it.date ? calcNextCharge(it.frequency, it.date) : null;
     const row1 = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><input class="lit" value="' + (it.label || '') + '" oninput="uLsafe(\'' + t + '\',' + i + ',\'label\',this.value);" placeholder="' + (t === 'income' ? 'Income source' : 'Expense name') + '" style="flex:1;"><input class="lin" type="number" value="' + (it.amount || '') + '" oninput="uLsafe(\'' + t + '\',' + i + ',\'amount\',this.value);" min="0" placeholder="0" style="width:100px;"><button class="db" onclick="dL(\'' + t + '\',' + i + ')">×</button></div>';
     const row2 = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><select style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:11px;color:var(--accent);font-family:\'DM Sans\',sans-serif;outline:none;cursor:pointer;" onchange="uLsafe(\'' + t + '\',' + i + ',\'type\',this.value);rlines(\'' + t + '\');">' + typeOpts + '</select><div style="display:flex;align-items:center;gap:4px;"><span style="font-size:10px;color:var(--muted);">' + (isOnetime ? 'Date:' : 'Started:') + '</span><input type="date" value="' + (it.date || today) + '" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:11px;color:var(--muted);font-family:\'DM Mono\',monospace;outline:none;cursor:pointer;color-scheme:dark;" onchange="uLsafe(\'' + t + '\',' + i + ',\'date\',this.value);rlines(\'' + t + '\');"></div>' + (effAmt > 0 ? '<span style="font-size:10px;font-family:\'DM Mono\',monospace;color:var(--muted);">≈ ' + fmt(effAmt) + '/yr</span>' : '') + (nextCharge ? '<span style="font-size:10px;color:var(--blue);">↻ next: ' + nextCharge + '</span>' : '') + '</div>';
     let recHtml = '';
@@ -1498,7 +1498,7 @@ function chb(h, yrs) {
   const factor = Math.pow(1 + r / n, n * t);
   return Math.round(P * factor + pmt * (factor - 1) / (r / n));
 }
-
+// For recurring contributions, calculate the next contribution date based on frequency and last contribution date
 const HYSA_RATES = {
   MARCUS:   { name:'Marcus by Goldman Sachs', rate:0.0450, comp:12  },
   SOFI:     { name:'SoFi Savings',            rate:0.0460, comp:365 },
@@ -1512,6 +1512,7 @@ const HYSA_RATES = {
   WFRT:     { name:'Wealthfront Cash',        rate:0.0500, comp:365 },
   FIDO_CMA: { name:'Fidelity CMA',            rate:0.0496, comp:365 },
 };
+// Calculate the best available HYSA rate for comparison warnings
 const BEST_RATE = Math.max(...Object.values(HYSA_RATES).map(r => r.rate));
 const hysaCharts = {};
 
@@ -2049,8 +2050,8 @@ async function renderCardChart(id, range, type) {
   // Calculate date range for this individual card
   const now = new Date();
   let fromDate;
-  if      (range === '1D')  fromDate = null; // intraday
-  else if (range === '3D')  fromDate = null; // intraday
+  if(range ==='1D') { fromDate = new Date(now); fromDate.setDate(now.getDate()-1); }
+  else if(range==='3D') { fromDate = new Date(now); fromDate.setDate(now.getDate()-3); }
   else if (range === '1M')  { fromDate = new Date(now); fromDate.setMonth(now.getMonth()-1); }
   else if (range === '6M')  { fromDate = new Date(now); fromDate.setMonth(now.getMonth()-6); }
   else if (range === 'YTD') { fromDate = new Date(now.getFullYear(), 0, 1); }
@@ -2444,11 +2445,14 @@ async function renderPortfolioChart(range) {
   // Longer ranges — daily OHLC from Yahoo Finance
   const cutoff=(()=>{
     const now=new Date(),c=new Date(now);
-    if(range==='1M') c.setMonth(now.getMonth()-1);
+    if(range ==='1D') c.setDate(now.getDate()-1);
+    else if(range==='3D') c.setDate(now.getDate()-3);
+    else if(range==='1M') c.setMonth(now.getMonth()-1);
     else if(range==='3M')c.setMonth(now.getMonth()-3);
     else if(range==='6M')c.setMonth(now.getMonth()-6);
     else if(range==='YTD')c.setFullYear(now.getFullYear(),0,1);
     else if(range==='1Y')c.setFullYear(now.getFullYear()-1);
+    else if(range==='3Y')c.setFullYear(now.getFullYear()-3);
     else return earliest;
     return c.toISOString().split('T')[0];
   })();
@@ -2699,7 +2703,7 @@ function togglePw(inputId,btnId){const inp=document.getElementById(inputId);cons
   if (USE_BACKEND && API_TOKEN) {
     const { data, error } = await apiRequest('GET', '/auth/me');
     if (!error && data?.user) {
-      const u = gU().find(x => x.id === data.user.id) || { id:data.user.id, username:data.user.username, dob:data.user.dob||'', risk:data.user.risk||'moderate' };
+      const u = gU().find(x => x.id === data.user.id) || { id:data.user.id, username:data.user.username, dob:data.user.date_of_birth||'', risk:data.user.risk_tolerance||'moderate' };
       if (!gU().find(x => x.id === u.id)) { const us=gU(); us.push(u); sU(us); }
       loginAs(u); return;
     } else { API_TOKEN=null; localStorage.removeItem('ft_api_token'); }
