@@ -298,10 +298,8 @@
             const cfg = { method, headers };
             if (body) cfg.body = JSON.stringify(body);
             
-            // Use port 8000 for backend (FastAPI)
-            const baseUrl = process.env.NODE_ENV === 'development' 
-                ? 'http://localhost:8000/api' 
-                : '/api';
+            // Always use relative /api path (Nginx proxies to backend:8000 internally)
+            const baseUrl = '/api';
             
             const r = await fetch(`${baseUrl}${path}`, cfg);
             if (!r.ok) {
@@ -323,9 +321,7 @@
             try {
                 const token = localStorage.getItem("REFRESH_TOKEN");
                 if (!token) return false;
-                const baseUrl = process.env.NODE_ENV === 'development' 
-                    ? 'http://localhost:8000/api' 
-                    : '/api';
+                const baseUrl = '/api';
                 const r = await fetch(`${baseUrl}/auth/refresh`, {
                     method: "POST",
                     headers: { "Authorization": `Bearer ${token}` }
@@ -527,9 +523,9 @@
         const searchStock = async () => {
             const ticker = document.getElementById("stockTicker").value;
             try {
-                const resp = await apiRequest("GET", `/proxy/ticker/lookup?q=${ticker}`);
+                const resp = await apiRequest("GET", `/ticker/lookup?q=${ticker}`);
                 if (resp?.result) {
-                    document.getElementById("stockPrice").value = (resp.result.regularMarketPrice || 0).toFixed(2);
+                    document.getElementById("stockPrice").value = (resp.result.price || resp.result.regularMarketPrice || 0).toFixed(2);
                 }
             } catch (e) {
                 showError("Stock lookup failed: " + e.message);
