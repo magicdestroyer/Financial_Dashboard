@@ -45,7 +45,7 @@ services:
       # psycopg2 (sync) driver for Alembic migrations
       DATABASE_URL_SYNC: postgresql://fintrack:${DB_PASSWORD:-107692_CBarson}@postgres:5432/fintrack
 
-      JWT_SECRET:               ${JWT_SECRET:-change-me-in-production}
+      JWT_SECRET:               ${JWT_SECRET:-107692_CBarson_ETTS_arson_2268_}
       JWT_ALGORITHM:            HS256
       JWT_ACCESS_EXPIRE_MINUTES: "30"
       JWT_REFRESH_EXPIRE_DAYS:  "30"
