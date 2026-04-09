@@ -31,6 +31,11 @@ services:
       start_period: 10s
     networks:
       - fintrack-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ── FastAPI backend ───────────────────────────────────────────────────────────
   backend:
@@ -72,6 +77,11 @@ services:
 
     networks:
       - fintrack-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ── Nginx + frontend ──────────────────────────────────────────────────────────
   frontend:
@@ -87,6 +97,11 @@ services:
       - backend
     networks:
       - fintrack-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # ── Named volumes ─────────────────────────────────────────────────────────────
 volumes:

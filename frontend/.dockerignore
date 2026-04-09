@@ -1,0 +1,32 @@
+# Node (if applicable)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+docs
+README.md
+
+# Docker
+Dockerfile
+docker-compose.yml
+compose.yaml
+.dockerignore
+
+# Build artifacts (if you use a build step)
+dist
+build
+.cache

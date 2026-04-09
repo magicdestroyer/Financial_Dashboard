@@ -1,50 +1,62 @@
-FROM python:3.11-slim
+# Multi-stage build for Python FastAPI backend
+# Stage 1: Builder — compile dependencies
+FROM python:3.11-slim as builder
 
-# Prevent .pyc files and force stdout/stderr flush
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    # Keep pip quiet and don't write a cache inside the image
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-WORKDIR /app
+WORKDIR /build
 
-# System deps needed to compile psycopg2
-# Kept in a single layer and cleaned up immediately to minimise image size
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        gcc \
-        libpq-dev \
-        # curl is used by the HEALTHCHECK below
-        curl \
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps before copying source so this layer is cached as long
-# as requirements.txt doesn't change
+# Copy requirements and pre-compile wheels
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --user --no-warn-script-location --compile -r requirements.txt
+
+
+# Stage 2: Runtime — minimal production image
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
+WORKDIR /app
+
+# Install only runtime dependencies (curl for healthcheck, psycopg2 libs)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy compiled Python packages from builder
+COPY --from=builder /root/.local /root/.local
 
 # Copy application source
 COPY app/      ./app/
 COPY alembic/  ./alembic/
 COPY alembic.ini .
-
-# Copy the entrypoint script and make it executable
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
-# Run as a non-root user — principle of least privilege
+# Add local pip bin to PATH
+ENV PATH=/root/.local/bin:$PATH
+
+# Create non-root user
 RUN addgroup --system appgroup && \
-    adduser  --system --ingroup appgroup --no-create-home appuser
+    adduser --system --ingroup appgroup --no-create-home appuser
 USER appuser
 
 EXPOSE 8000
 
-# Liveness check — hits the /api/health endpoint we already have
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Entrypoint runs migrations first, then hands off to CMD
-ENV PYTHONPATH=/app
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

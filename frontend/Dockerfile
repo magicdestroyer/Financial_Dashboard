@@ -12,7 +12,6 @@ COPY manifest.json /usr/share/nginx/html/
 COPY sw.js         /usr/share/nginx/html/
 
 # Create the icons directory so Nginx doesn't 404 on /icons/*
-# Add your icon files here at build time if you have them
 RUN mkdir -p /usr/share/nginx/html/icons
 
 # Update pid file location so the non-root nginx user can write it
