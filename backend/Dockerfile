@@ -35,8 +35,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy compiled Python packages from builder
-COPY --from=builder /root/.local /root/.local
+# Copy compiled Python packages from builder to /usr/local
+COPY --from=builder /root/.local /usr/local
 
 # Copy application source
 COPY app/      ./app/
@@ -45,12 +45,14 @@ COPY alembic.ini .
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
-# Add local pip bin to PATH
-ENV PATH=/root/.local/bin:$PATH
-
 # Create non-root user
 RUN addgroup --system appgroup && \
     adduser --system --ingroup appgroup --no-create-home appuser
+
+# Change ownership of app directory to appuser
+RUN chown -R appuser:appgroup /app
+
+# /usr/local/bin is already in PATH and readable by all users
 USER appuser
 
 EXPOSE 8000
