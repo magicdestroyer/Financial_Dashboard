@@ -1,6 +1,6 @@
 # Multi-stage build for Python FastAPI backend
 # Stage 1: Builder — compile dependencies
-FROM python:3.11-slim as builder
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
