@@ -298,7 +298,9 @@
             const cfg = { method, headers };
             if (body) cfg.body = JSON.stringify(body);
             
-            // Always use relative /api path (Nginx proxies to backend:8000 internally)
+            // Use window.location.origin to get the actual host (e.g., http://localhost:8080)
+            // Then replace :8080 with :8000 for backend access
+            // OR use relative /api which Nginx proxies
             const baseUrl = '/api';
             
             const r = await fetch(`${baseUrl}${path}`, cfg);
