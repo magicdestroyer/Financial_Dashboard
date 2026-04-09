@@ -38,7 +38,7 @@ async def proxy_search(q: str = Query(..., min_length=1), _=Depends(get_current_
     return results
 
 
-@router.get("/ticker/lookup")
+@router.get("/lookup")
 async def ticker_lookup(q: str = Query(..., description="Stock ticker or company name"), _=Depends(get_current_user)):
     """
     Lookup a ticker by symbol or company name. Returns quote data.
