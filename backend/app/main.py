@@ -61,6 +61,7 @@ app.include_router(hysa.router,              prefix="/api/hysa",     tags=["HYSA
 app.include_router(stocks.router,            prefix="/api/stocks",   tags=["Stocks"])
 app.include_router(snapshots.router,         prefix="/api/snapshots",tags=["Snapshots"])
 app.include_router(proxy.router,             prefix="/api/proxy",    tags=["Proxy"])
+app.include_router(proxy.router,             prefix="/api/ticker",   tags=["Ticker"])
 app.include_router(data.router,              prefix="/api",          tags=["Data"])
 app.include_router(export.router,            prefix="/api",          tags=["Export"])
 
